@@ -1,0 +1,38 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: python src/preprocess.py
+    deps:
+    - path: data/raw/student_performance.csv
+      hash: md5
+      md5: 8b8cc1fdc5d07f760522c0e4bb598641
+      size: 47565
+    - path: src/preprocess.py
+      hash: md5
+      md5: 7abfb8988a93076240422faf6509fb52
+      size: 1169
+    outs:
+    - path: data/processed/student_processed.csv
+      hash: md5
+      md5: 3747c6355622bf853e0f1d23cf67d1a5
+      size: 56721
+  train:
+    cmd: python src/train.py
+    deps:
+    - path: data/processed/student_processed.csv
+      hash: md5
+      md5: 3747c6355622bf853e0f1d23cf67d1a5
+      size: 56721
+    - path: src/train.py
+      hash: md5
+      md5: afe18ebf173a2298fea1038801764828
+      size: 2868
+    outs:
+    - path: models/best_model.pkl
+      hash: md5
+      md5: 232f49384e6ce34a1c54870d3ee97854
+      size: 1152
+    - path: models/model_comparison.csv
+      hash: md5
+      md5: f647ccd05d294b81deb11fddbfcd5fd2
+      size: 236
