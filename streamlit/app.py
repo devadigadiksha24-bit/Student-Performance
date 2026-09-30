@@ -1,450 +1,285 @@
-import os
+import streamlit as st
 import requests
 import pandas as pd
-import streamlit as st
-
-
-# ============================================================
-# PAGE CONFIGURATION
-# ============================================================
+import joblib
+import plotly.graph_objects as go
+import plotly.express as px
 
 st.set_page_config(
-    page_title="Student Performance Prediction",
-    page_icon="",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="Student Performance AI",
+    page_icon="🎓",
+    layout="wide"
 )
-
-
-# ============================================================
-# CONFIGURATION
-# ============================================================
 
 API_URL = "http://127.0.0.1:8000/predict"
-
-MODEL_COMPARISON_PATH = "models/model_comparison.csv"
-
-
-# ============================================================
-# CLEAN PROFESSIONAL CSS
-# ============================================================
-
-st.markdown(
-    """
-    <style>
-
-    /* ========================================================
-       GLOBAL PAGE
-       ======================================================== */
-
-    .stApp {
-        background-color: #f5f7fb;
-        color: #172033;
-    }
-
-    .main .block-container {
-        max-width: 1450px;
-        padding-top: 2rem;
-        padding-bottom: 3rem;
-    }
+MODEL_PATH = "models/best_model.pkl"
+MODEL_FILE = "models/model_comparison.csv"
 
 
-    /* ========================================================
-       ALL GENERAL TEXT
-       ======================================================== */
-
-    .stMarkdown,
-    .stMarkdown p,
-    .stMarkdown span,
-    .stMarkdown label {
-        color: #172033 !important;
-    }
-
-    h1, h2, h3, h4 {
-        color: #172033 !important;
-    }
-
-
-    /* ========================================================
-       MAIN TITLE
-       ======================================================== */
-
-    .main-title {
-        font-size: 36px;
-        font-weight: 750;
-        color: #172554 !important;
-        margin-bottom: 4px;
-        line-height: 1.2;
-    }
-
-    .main-subtitle {
-        font-size: 15px;
-        color: #64748b !important;
-        margin-bottom: 20px;
-    }
-
-
-    /* ========================================================
-       SECTION HEADINGS
-       ======================================================== */
-
-    .section-heading {
-        font-size: 21px;
-        font-weight: 700;
-        color: #172554 !important;
-        margin-top: 25px;
-        margin-bottom: 12px;
-    }
-
-
-    /* ========================================================
-       SIDEBAR
-       ======================================================== */
-
-    section[data-testid="stSidebar"] {
-        background-color: #172554 !important;
-    }
-
-    section[data-testid="stSidebar"] * {
-        color: #ffffff !important;
-    }
-
-    section[data-testid="stSidebar"] p {
-        color: #dbeafe !important;
-    }
-
-    section[data-testid="stSidebar"] hr {
-        border-color: #334d8f !important;
-    }
-
-    section[data-testid="stSidebar"] label {
-        color: #ffffff !important;
-        font-weight: 500;
-    }
-
-
-    /* ========================================================
-       SIDEBAR INPUTS
-       ======================================================== */
-
-    section[data-testid="stSidebar"] input {
-        background-color: #ffffff !important;
-        color: #172033 !important;
-        border-radius: 6px !important;
-    }
-
-    section[data-testid="stSidebar"] input::placeholder {
-        color: #64748b !important;
-    }
-
-    section[data-testid="stSidebar"] div[data-baseweb="select"] {
-        background-color: #ffffff !important;
-    }
-
-    section[data-testid="stSidebar"] div[data-baseweb="select"] * {
-        color: #172033 !important;
-    }
-
-    section[data-testid="stSidebar"] button {
-        color: #172033 !important;
-    }
-
-
-    /* ========================================================
-       BUTTON
-       ======================================================== */
-
-    .stButton > button {
-        width: 100%;
-        height: 46px;
-        background-color: #2563eb !important;
-        color: #ffffff !important;
-        border: none !important;
-        border-radius: 8px !important;
-        font-weight: 700 !important;
-        font-size: 15px !important;
-    }
-
-    .stButton > button:hover {
-        background-color: #1d4ed8 !important;
-        color: #ffffff !important;
-    }
-
-
-    /* ========================================================
-       METRIC CARDS
-       ======================================================== */
-
-    div[data-testid="stMetric"] {
-        background-color: #ffffff !important;
-        border: 1px solid #dbe3ef !important;
-        border-radius: 12px !important;
-        padding: 18px !important;
-        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
-    }
-
-    div[data-testid="stMetricLabel"] {
-        color: #64748b !important;
-    }
-
-    div[data-testid="stMetricLabel"] * {
-        color: #64748b !important;
-    }
-
-    div[data-testid="stMetricValue"] {
-        color: #172554 !important;
-        font-weight: 750 !important;
-    }
-
-    div[data-testid="stMetricValue"] * {
-        color: #172554 !important;
-    }
-
-
-    /* ========================================================
-       ALERTS / INFO
-       ======================================================== */
-
-    div[data-testid="stAlert"] {
-        border-radius: 10px;
-    }
-
-
-    /* ========================================================
-       DATAFRAME
-       ======================================================== */
-
-    div[data-testid="stDataFrame"] {
-        border: 1px solid #dbe3ef;
-        border-radius: 10px;
-    }
-
-
-    /* ========================================================
-       EXPANDER
-       ======================================================== */
-
-    div[data-testid="stExpander"] {
-        background-color: #ffffff !important;
-        border: 1px solid #dbe3ef !important;
-        border-radius: 10px !important;
-    }
-
-    div[data-testid="stExpander"] summary {
-        color: #172033 !important;
-        font-weight: 600 !important;
-    }
-
-
-    /* ========================================================
-       FOOTER
-       ======================================================== */
-
-    .footer-text {
-        text-align: center;
-        color: #64748b !important;
-        font-size: 13px;
-        padding-top: 25px;
-        margin-top: 35px;
-        border-top: 1px solid #dbe3ef;
-    }
-
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-
-# ============================================================
+# =========================================================
 # HEADER
-# ============================================================
+# =========================================================
 
-st.markdown(
-    '<div class="main-title">Student Performance Prediction</div>',
-    unsafe_allow_html=True
-)
-
-st.markdown(
-    '<div class="main-subtitle">'
-    'Machine learning dashboard for predicting student academic performance'
-    '</div>',
-    unsafe_allow_html=True
-)
+st.title("Student Performance Prediction")
+st.caption("AI-powered academic performance prediction dashboard")
 
 st.divider()
 
 
-# ============================================================
+# =========================================================
 # SIDEBAR
-# ============================================================
+# =========================================================
 
-with st.sidebar:
+st.sidebar.header("Student Details")
 
-    st.title("Student Details")
+gender = st.sidebar.selectbox(
+    "Gender", ["Female", "Male"]
+)
 
-    st.write(
-        "Enter the student's information to generate "
-        "a performance prediction."
+age = st.sidebar.number_input(
+    "Age", min_value=15, max_value=30, value=20
+)
+
+study_hours = st.sidebar.number_input(
+    "Study Hours / Day",
+    min_value=0.0,
+    max_value=24.0,
+    value=4.0,
+    step=0.5
+)
+
+attendance = st.sidebar.slider(
+    "Attendance (%)",
+    0, 100, 85
+)
+
+previous_score = st.sidebar.number_input(
+    "Previous Score",
+    min_value=0.0,
+    max_value=100.0,
+    value=75.0
+)
+
+assignments = st.sidebar.number_input(
+    "Assignments Completed",
+    min_value=0,
+    max_value=20,
+    value=9
+)
+
+sleep_hours = st.sidebar.number_input(
+    "Sleep Hours / Day",
+    min_value=0.0,
+    max_value=24.0,
+    value=7.0,
+    step=0.5
+)
+
+extracurricular = st.sidebar.selectbox(
+    "Extracurricular Activities",
+    ["Yes", "No"]
+)
+
+internet = st.sidebar.selectbox(
+    "Internet Access",
+    ["Yes", "No"]
+)
+
+parental_support = st.sidebar.selectbox(
+    "Parental Support",
+    ["Low", "Medium", "High"]
+)
+
+predict_button = st.sidebar.button(
+    "Predict Final Score",
+    type="primary",
+    use_container_width=True
+)
+
+
+# =========================================================
+# OVERVIEW
+# =========================================================
+
+st.subheader("Student Overview")
+
+c1, c2, c3, c4 = st.columns(4)
+
+c1.metric("Study Hours", f"{study_hours:.1f} hrs")
+c2.metric("Attendance", f"{attendance}%")
+c3.metric("Previous Score", f"{previous_score:.0f}")
+c4.metric("Assignments", assignments)
+
+
+# =========================================================
+# DONUT CHARTS
+# These are displayed BEFORE prediction
+# =========================================================
+
+st.subheader("Academic Indicators")
+
+d1, d2, d3 = st.columns(3)
+
+
+# ---------- ATTENDANCE ----------
+
+with d1:
+
+    fig = go.Figure(
+        go.Pie(
+            labels=["Attendance", "Remaining"],
+            values=[attendance, 100 - attendance],
+            hole=0.68,
+            textinfo="none"
+        )
     )
 
-    st.divider()
-
-    gender = st.selectbox(
-        "Gender",
-        ["Male", "Female"]
+    fig.update_layout(
+        title="Attendance",
+        height=280,
+        showlegend=False,
+        margin=dict(l=10, r=10, t=50, b=10),
+        annotations=[
+            dict(
+                text=f"{attendance}%",
+                x=0.5,
+                y=0.5,
+                font=dict(size=25),
+                showarrow=False
+            )
+        ]
     )
 
-    age = st.number_input(
-        "Age",
-        min_value=15,
-        max_value=30,
-        value=20,
-        step=1
-    )
-
-    study_hours = st.number_input(
-        "Study Hours per Day",
-        min_value=0.0,
-        max_value=15.0,
-        value=3.0,
-        step=0.5
-    )
-
-    attendance = st.slider(
-        "Attendance (%)",
-        min_value=0.0,
-        max_value=100.0,
-        value=75.0,
-        step=1.0
-    )
-
-    previous_score = st.number_input(
-        "Previous Score",
-        min_value=0.0,
-        max_value=100.0,
-        value=65.0,
-        step=1.0
-    )
-
-    assignments_completed = st.number_input(
-        "Assignments Completed",
-        min_value=0,
-        max_value=20,
-        value=8,
-        step=1
-    )
-
-    sleep_hours = st.number_input(
-        "Sleep Hours per Day",
-        min_value=0.0,
-        max_value=15.0,
-        value=7.0,
-        step=0.5
-    )
-
-    extracurricular = st.selectbox(
-        "Extracurricular Activities",
-        ["Yes", "No"]
-    )
-
-    internet_access = st.selectbox(
-        "Internet Access",
-        ["Yes", "No"]
-    )
-
-    parental_support = st.selectbox(
-        "Parental Support",
-        ["Low", "Medium", "High"]
-    )
-
-    st.divider()
-
-    predict_button = st.button(
-        "Predict Final Score",
-        type="primary",
+    st.plotly_chart(
+        fig,
         use_container_width=True
     )
 
 
-# ============================================================
-# STUDENT OVERVIEW
-# ============================================================
+# ---------- ASSIGNMENTS ----------
 
-st.markdown(
-    '<div class="section-heading">Student Overview</div>',
-    unsafe_allow_html=True
-)
+with d2:
 
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-
-    st.metric(
-        label="Study Hours",
-        value=f"{study_hours:.1f} hrs"
+    assignment_percent = min(
+        assignments / 10 * 100,
+        100
     )
 
-with col2:
-
-    st.metric(
-        label="Attendance",
-        value=f"{attendance:.0f}%"
+    fig = go.Figure(
+        go.Pie(
+            labels=["Completed", "Remaining"],
+            values=[
+                assignment_percent,
+                100 - assignment_percent
+            ],
+            hole=0.68,
+            textinfo="none"
+        )
     )
 
-with col3:
-
-    st.metric(
-        label="Previous Score",
-        value=f"{previous_score:.0f}"
+    fig.update_layout(
+        title="Assignment Completion",
+        height=280,
+        showlegend=False,
+        margin=dict(l=10, r=10, t=50, b=10),
+        annotations=[
+            dict(
+                text=f"{assignment_percent:.0f}%",
+                x=0.5,
+                y=0.5,
+                font=dict(size=25),
+                showarrow=False
+            )
+        ]
     )
 
-with col4:
-
-    st.metric(
-        label="Assignments",
-        value=f"{assignments_completed}"
+    st.plotly_chart(
+        fig,
+        use_container_width=True
     )
 
 
-# ============================================================
+# ---------- STUDY TIME ----------
+
+with d3:
+
+    study_percent = min(
+        study_hours / 8 * 100,
+        100
+    )
+
+    fig = go.Figure(
+        go.Pie(
+            labels=["Study Time", "Remaining"],
+            values=[
+                study_percent,
+                100 - study_percent
+            ],
+            hole=0.68,
+            textinfo="none"
+        )
+    )
+
+    fig.update_layout(
+        title="Study Hours",
+        height=280,
+        showlegend=False,
+        margin=dict(l=10, r=10, t=50, b=10),
+        annotations=[
+            dict(
+                text=f"{study_hours:.1f} hrs",
+                x=0.5,
+                y=0.5,
+                font=dict(size=22),
+                showarrow=False
+            )
+        ]
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+
+# =========================================================
 # PREDICTION
-# ============================================================
+# =========================================================
 
-st.markdown(
-    '<div class="section-heading">Performance Prediction</div>',
-    unsafe_allow_html=True
-)
+st.divider()
 
-
-if "predicted_score" not in st.session_state:
-
-    st.session_state["predicted_score"] = None
+st.subheader("Performance Prediction")
 
 
 if predict_button:
 
     payload = {
         "gender": gender,
-        "age": int(age),
-        "study_hours": float(study_hours),
-        "attendance": float(attendance),
-        "previous_score": float(previous_score),
-        "assignments_completed": int(assignments_completed),
-        "sleep_hours": float(sleep_hours),
+        "age": age,
+        "study_hours": study_hours,
+        "attendance": attendance,
+        "previous_score": previous_score,
+        "assignments_completed": assignments,
+        "sleep_hours": sleep_hours,
         "extracurricular": extracurricular,
-        "internet_access": internet_access,
+        "internet_access": internet,
         "parental_support": parental_support
     }
 
+    score = None
+    source = ""
+
+    # -----------------------------------------------------
+    # FIRST: FASTAPI
+    # -----------------------------------------------------
+
     try:
 
-        with st.spinner("Generating prediction..."):
-
-            response = requests.post(
-                API_URL,
-                json=payload,
-                timeout=10
-            )
+        response = requests.post(
+            API_URL,
+            json=payload,
+            timeout=2
+        )
 
         if response.status_code == 200:
 
@@ -454,340 +289,285 @@ if predict_button:
                 result["predicted_final_score"]
             )
 
+            source = "FastAPI"
+
+    except requests.exceptions.RequestException:
+        pass
+
+
+    # -----------------------------------------------------
+    # FALLBACK: LOCAL MODEL
+    # -----------------------------------------------------
+
+    if score is None:
+
+        try:
+
+            model = joblib.load(MODEL_PATH)
+
+            input_data = pd.DataFrame([{
+                "age": age,
+                "study_hours": study_hours,
+                "attendance": attendance,
+                "previous_score": previous_score,
+                "assignments_completed": assignments,
+                "sleep_hours": sleep_hours,
+
+                "gender_Male":
+                    int(gender == "Male"),
+
+                "extracurricular_Yes":
+                    int(extracurricular == "Yes"),
+
+                "internet_access_Yes":
+                    int(internet == "Yes"),
+
+                "parental_support_Low":
+                    int(parental_support == "Low"),
+
+                "parental_support_Medium":
+                    int(parental_support == "Medium")
+            }])
+
+            score = float(
+                model.predict(input_data)[0]
+            )
+
             score = max(
                 0,
                 min(100, score)
             )
 
-            st.session_state["predicted_score"] = score
+            source = "Local ML Model"
 
-        else:
+        except Exception as e:
 
             st.error(
-                f"FastAPI returned status code "
-                f"{response.status_code}"
+                f"Prediction failed: {e}"
             )
 
-    except requests.exceptions.ConnectionError:
-
-        st.error(
-            "FastAPI is not running."
-        )
-
-        st.info(
-            "Run this command in another terminal:"
-        )
-
-        st.code(
-            "python -m uvicorn api.app:app --reload"
-        )
-
-    except requests.exceptions.Timeout:
-
-        st.error(
-            "The prediction request timed out."
-        )
-
-    except Exception as error:
-
-        st.error(
-            f"Prediction failed: {error}"
-        )
+            st.stop()
 
 
-# ============================================================
-# SHOW PREDICTION
-# ============================================================
+    # =====================================================
+    # RESULT
+    # =====================================================
 
-if st.session_state["predicted_score"] is not None:
+    if score >= 75:
+        category = "High Performance"
+    elif score >= 50:
+        category = "Moderate Performance"
+    else:
+        category = "Needs Improvement"
 
-    predicted_score = st.session_state["predicted_score"]
 
-    result_col1, result_col2 = st.columns(
-        [1, 2]
-    )
+    r1, r2 = st.columns(2)
 
-    with result_col1:
+
+    # ---------- SCORE ----------
+
+    with r1:
 
         st.metric(
             "Predicted Final Score",
-            f"{predicted_score:.2f} / 100"
+            f"{score:.2f} / 100"
         )
 
-        if predicted_score >= 75:
-
-            st.success(
-                "Higher expected performance"
-            )
-
-        elif predicted_score >= 50:
-
-            st.warning(
-                "Moderate expected performance"
-            )
-
+        if score >= 75:
+            st.success(category)
+        elif score >= 50:
+            st.warning(category)
         else:
+            st.error(category)
 
-            st.error(
-                "Lower expected performance"
-            )
+        st.caption(
+            f"Prediction generated using: {source}"
+        )
 
         st.progress(
-            predicted_score / 100
+            int(score)
         )
 
 
-    with result_col2:
+    # ---------- SCORE COMPARISON ----------
 
-        comparison_df = pd.DataFrame(
-            {
-                "Score": [
-                    previous_score,
-                    predicted_score
-                ]
-            },
-            index=[
+    with r2:
+
+        comparison = pd.DataFrame({
+            "Score Type": [
                 "Previous Score",
                 "Predicted Score"
+            ],
+            "Score": [
+                previous_score,
+                score
+            ]
+        })
+
+        fig = px.bar(
+            comparison,
+            x="Score Type",
+            y="Score",
+            text="Score",
+            range_y=[0, 100],
+            title="Previous vs Predicted Score"
+        )
+
+        fig.update_traces(
+            texttemplate="%{text:.1f}",
+            textposition="outside"
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+
+    # =====================================================
+    # PERFORMANCE DONUT
+    # =====================================================
+
+    st.subheader("Predicted Performance")
+
+    p1, p2 = st.columns(2)
+
+    with p1:
+
+        fig = go.Figure(
+            go.Pie(
+                labels=[
+                    "Predicted Score",
+                    "Remaining"
+                ],
+                values=[
+                    score,
+                    100 - score
+                ],
+                hole=0.70,
+                textinfo="none"
+            )
+        )
+
+        fig.update_layout(
+            title=category,
+            height=320,
+            showlegend=False,
+            annotations=[
+                dict(
+                    text=f"{score:.1f}",
+                    x=0.5,
+                    y=0.5,
+                    font=dict(size=30),
+                    showarrow=False
+                )
             ]
         )
 
-        st.bar_chart(
-            comparison_df,
-            y="Score"
+        st.plotly_chart(
+            fig,
+            use_container_width=True
         )
 
-else:
+    with p2:
 
-    st.info(
-        "Enter the student's information in the sidebar "
-        "and click 'Predict Final Score'."
+        indicators = pd.DataFrame({
+            "Indicator": [
+                "Attendance",
+                "Previous Score",
+                "Study Hours",
+                "Assignments"
+            ],
+            "Value": [
+                attendance,
+                previous_score,
+                min(study_hours / 8 * 100, 100),
+                min(assignments / 10 * 100, 100)
+            ]
+        })
+
+        fig = px.bar(
+            indicators,
+            x="Indicator",
+            y="Value",
+            text="Value",
+            range_y=[0, 100],
+            title="Academic Indicators"
+        )
+
+        fig.update_traces(
+            texttemplate="%{text:.0f}",
+            textposition="outside"
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+
+# =========================================================
+# MODEL COMPARISON
+# =========================================================
+
+st.divider()
+
+st.subheader("Model Comparison")
+
+try:
+
+    models = pd.read_csv(
+        MODEL_FILE
     )
 
+    st.dataframe(
+        models,
+        use_container_width=True,
+        hide_index=True
+    )
 
-# ============================================================
-# ACADEMIC INDICATORS
-# ============================================================
+    if "RMSE" in models.columns:
 
-st.markdown(
-    '<div class="section-heading">Academic Indicators</div>',
-    unsafe_allow_html=True
-)
-
-study_normalized = min(
-    study_hours * 10,
-    100
-)
-
-assignment_normalized = min(
-    assignments_completed * 10,
-    100
-)
-
-indicator_df = pd.DataFrame(
-    {
-        "Value": [
-            study_normalized,
-            attendance,
-            previous_score,
-            assignment_normalized
-        ]
-    },
-    index=[
-        "Study Hours",
-        "Attendance",
-        "Previous Score",
-        "Assignments"
-    ]
-)
-
-st.bar_chart(
-    indicator_df,
-    y="Value"
-)
-
-st.caption(
-    "Study hours and assignments are normalized to a 0–100 scale "
-    "for visualization."
-)
-
-
-# ============================================================
-# MODEL COMPARISON
-# ============================================================
-
-st.markdown(
-    '<div class="section-heading">Model Comparison</div>',
-    unsafe_allow_html=True
-)
-
-if os.path.exists(MODEL_COMPARISON_PATH):
-
-    try:
-
-        model_df = pd.read_csv(
-            MODEL_COMPARISON_PATH
+        fig = px.bar(
+            models,
+            x="Model",
+            y="RMSE",
+            text="RMSE",
+            title="Model Performance Comparison"
         )
 
-        if "model" in model_df.columns:
-
-            display_df = model_df.copy()
-
-            st.dataframe(
-                display_df,
-                use_container_width=True,
-                hide_index=True
-            )
-
-        if (
-            "model" in model_df.columns
-            and "RMSE" in model_df.columns
-        ):
-
-            chart_df = model_df[
-                ["model", "RMSE"]
-            ].copy()
-
-            chart_df = chart_df.set_index(
-                "model"
-            )
-
-            st.bar_chart(
-                chart_df,
-                y="RMSE"
-            )
-
-            st.caption(
-                "Lower RMSE indicates lower prediction error."
-            )
-
-    except Exception as error:
-
-        st.error(
-            f"Could not load model comparison: {error}"
+        fig.update_traces(
+            texttemplate="%{text:.2f}",
+            textposition="outside"
         )
 
-else:
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+except Exception:
 
     st.warning(
-        "Model comparison file was not found."
+        "Model comparison file not found."
     )
 
 
-# ============================================================
-# SELECTED MODEL
-# ============================================================
-
-st.markdown(
-    '<div class="section-heading">Selected Model</div>',
-    unsafe_allow_html=True
-)
-
-model_col1, model_col2, model_col3 = st.columns(3)
-
-with model_col1:
-
-    st.metric(
-        "Best Model",
-        "Linear Regression"
-    )
-
-with model_col2:
-
-    st.metric(
-        "RMSE",
-        "4.64"
-    )
-
-with model_col3:
-
-    st.metric(
-        "R² Score",
-        "0.743"
-    )
-
-
-# ============================================================
+# =========================================================
 # MLOPS STATUS
-# ============================================================
+# =========================================================
 
-st.markdown(
-    '<div class="section-heading">MLOps Pipeline Status</div>',
-    unsafe_allow_html=True
-)
+st.divider()
 
-status1, status2, status3, status4 = st.columns(4)
+st.subheader("MLOps Pipeline Status")
 
-with status1:
+m1, m2, m3, m4 = st.columns(4)
 
-    st.metric(
-        "DVC",
-        "Active"
-    )
+m1.metric("DVC", "Active")
+m2.metric("MLflow", "Active")
+m3.metric("FastAPI", "Active")
+m4.metric("CI/CD", "Passed")
 
-with status2:
-
-    st.metric(
-        "MLflow",
-        "Active"
-    )
-
-with status3:
-
-    st.metric(
-        "FastAPI",
-        "Active"
-    )
-
-with status4:
-
-    st.metric(
-        "GitHub Actions",
-        "Passed"
-    )
-
-
-# ============================================================
-# WORKFLOW
-# ============================================================
-
-with st.expander(
-    "View MLOps Workflow"
-):
-
-    st.write(
-        """
-        1. Dataset is versioned using DVC.
-
-        2. Data is preprocessed.
-
-        3. Multiple machine learning models are trained.
-
-        4. MLflow records experiments and metrics.
-
-        5. Models are compared using evaluation metrics.
-
-        6. The best-performing model is selected.
-
-        7. FastAPI provides the prediction service.
-
-        8. Streamlit provides the user dashboard.
-
-        9. GitHub Actions performs continuous integration.
-
-        10. Docker provides containerized deployment.
-        """
-    )
-
-
-# ============================================================
-# FOOTER
-# ============================================================
-
-st.markdown(
-    '<div class="footer-text">'
-    'Student Performance Prediction MLOps Pipeline | '
-    'DVC | MLflow | FastAPI | Streamlit | GitHub Actions'
-    '</div>',
-    unsafe_allow_html=True
+st.caption(
+    "DVC → Preprocessing → MLflow → Best Model → FastAPI → Docker → Streamlit"
 )

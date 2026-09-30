@@ -12,3 +12,4 @@ streamlit
 requests
 pytest
 httpx2
+plotly

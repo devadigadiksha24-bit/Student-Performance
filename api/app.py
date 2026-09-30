@@ -3,18 +3,17 @@ from pydantic import BaseModel
 import pandas as pd
 import joblib
 
-
 app = FastAPI(
     title="Student Performance Prediction API",
     description="ML API for predicting student final performance",
     version="1.0"
 )
 
+# Load trained model once
 model = joblib.load("models/best_model.pkl")
 
 
 class StudentData(BaseModel):
-
     gender: str
     age: int
     study_hours: float
@@ -29,9 +28,16 @@ class StudentData(BaseModel):
 
 @app.get("/")
 def home():
-
     return {
         "message": "Student Performance Prediction API is running"
+    }
+
+
+@app.get("/health")
+def health():
+    return {
+        "status": "healthy",
+        "model": "best_model.pkl"
     }
 
 
@@ -46,24 +52,18 @@ def predict(data: StudentData):
         "assignments_completed": data.assignments_completed,
         "sleep_hours": data.sleep_hours,
 
-        "gender_Male":
-            1 if data.gender == "Male" else 0,
-
-        "extracurricular_Yes":
-            1 if data.extracurricular == "Yes" else 0,
-
-        "internet_access_Yes":
-            1 if data.internet_access == "Yes" else 0,
-
-        "parental_support_Low":
-            1 if data.parental_support == "Low" else 0,
-
-        "parental_support_Medium":
-            1 if data.parental_support == "Medium" else 0
+        "gender_Male": 1 if data.gender == "Male" else 0,
+        "extracurricular_Yes": 1 if data.extracurricular == "Yes" else 0,
+        "internet_access_Yes": 1 if data.internet_access == "Yes" else 0,
+        "parental_support_Low": 1 if data.parental_support == "Low" else 0,
+        "parental_support_Medium": 1 if data.parental_support == "Medium" else 0
     }])
 
-    prediction = model.predict(input_data)[0]
+    prediction = float(model.predict(input_data)[0])
+
+    # Keep score within 0–100
+    prediction = max(0, min(100, prediction))
 
     return {
-        "predicted_final_score": round(float(prediction), 2)
+        "predicted_final_score": round(prediction, 2)
     }
